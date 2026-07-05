@@ -16,7 +16,7 @@ spec:
       containers:
         - name: php-fpm
           # Image tag is rewritten automatically by the GitHub Actions workflow
-          image: ghcr.io/OWNER/REPO-app:latest
+          image: ghcr.io/leader-19/argo-cd-rancher-app:latest
           ports:
             - containerPort: 9000
           envFrom:
@@ -61,7 +61,7 @@ spec:
             periodSeconds: 20
 
         - name: nginx
-          image: ghcr.io/Leader-19/Argo-CD-Rancher-app:latest
+          image: ghcr.io/leader-19/argo-cd-rancher-nginx:latest
           ports:
             - containerPort: 80
           resources:

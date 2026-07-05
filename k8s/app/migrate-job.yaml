@@ -14,7 +14,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: migrate
-          image: ghcr.io/Leader-19/Argo-CD-Rancher-app:latest
+          image: ghcr.io/leader-19/argo-cd-rancher-app:latest
           command: ["php", "artisan", "migrate", "--force"]
           envFrom:
             - configMapRef:
