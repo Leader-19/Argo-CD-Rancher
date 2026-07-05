@@ -1,0 +1,93 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  # ghcr.io/<owner>/<repo>-app and ghcr.io/<owner>/<repo>-nginx
+  IMAGE_APP: ${{ github.repository }}-app
+  IMAGE_NGINX: ${{ github.repository }}-nginx
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to commit the updated image tag back
+      packages: write   # needed to push to GHCR
+    outputs:
+      image_tag: ${{ steps.vars.outputs.sha_short }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set short SHA
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push PHP-FPM image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_APP }}:${{ steps.vars.outputs.sha_short }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_APP }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push Nginx image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/nginx/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NGINX }}:${{ steps.vars.outputs.sha_short }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NGINX }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  update-manifests:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # If you keep manifests in a separate GitOps repo, check that out instead:
+          # repository: your-org/laravel-gitops
+          # token: ${{ secrets.GITOPS_PAT }}
+          fetch-depth: 0
+
+      - name: Update image tags in k8s manifests
+        env:
+          TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          sed -i "s#ghcr.io/.*-app:.*#ghcr.io/${{ github.repository }}-app:${TAG}#g" k8s/app/deployment.yaml
+          sed -i "s#ghcr.io/.*-nginx:.*#ghcr.io/${{ github.repository }}-nginx:${TAG}#g" k8s/app/deployment.yaml
+
+      - name: Commit & push updated manifests
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/app/deployment.yaml
+          git diff --cached --quiet && echo "No changes" || git commit -m "chore: deploy ${TAG}"
+          git push
+        env:
+          TAG: ${{ needs.build-and-push.outputs.image_tag }}
