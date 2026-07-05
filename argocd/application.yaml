@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: laravel-app
+  namespace: argocd # ArgoCD's own namespace, not the app namespace
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Leader-19/Argo-CD-Rancher.git
+    targetRevision: main
+    path: k8s # includes namespace.yaml, mysql/, app/
+    directory:
+      recurse: true
+
+  destination:
+    # The Rancher-managed cluster this app deploys to.
+    # Use "https://kubernetes.default.svc" if ArgoCD runs on the same
+    # cluster as the app; otherwise use the cluster's API server URL as
+    # registered in ArgoCD (Settings > Clusters).
+    server: https://kubernetes.default.svc
+    namespace: laravel-app
+
+  syncPolicy:
+    automated:
+      prune: true # remove resources deleted from git
+      selfHeal: true # revert manual/out-of-band cluster changes
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m
