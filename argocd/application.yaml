@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: laravel-app
-  namespace: argocd # ArgoCD's own namespace, not the app namespace
+  namespace: argocd   # ArgoCD's own namespace, not the app namespace
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -10,8 +10,8 @@ spec:
 
   source:
     repoURL: https://github.com/Leader-19/Argo-CD-Rancher.git
-    targetRevision: main
-    path: k8s # includes namespace.yaml, mysql/, app/
+    targetRevision: master
+    path: k8s          # includes namespace.yaml, mysql/, app/
     directory:
       recurse: true
 
@@ -25,8 +25,8 @@ spec:
 
   syncPolicy:
     automated:
-      prune: true # remove resources deleted from git
-      selfHeal: true # revert manual/out-of-band cluster changes
+      prune: true       # remove resources deleted from git
+      selfHeal: true     # revert manual/out-of-band cluster changes
     syncOptions:
       - CreateNamespace=true
       - PrunePropagationPolicy=foreground
